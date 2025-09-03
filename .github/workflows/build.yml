@@ -24,7 +24,7 @@ jobs:
           pyinstaller --onefile --noconsole --name BrandingTool --icon=lg.ico --clean --strip main.py
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: macos-app
           path: dist/*
