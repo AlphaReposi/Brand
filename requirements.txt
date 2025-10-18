@@ -1,0 +1,7 @@
+opencv-python
+Pillow
+PyQt5
+moviepy
+numpy
+imageio
+imageio-ffmpeg
