@@ -20,7 +20,7 @@ class VideoProcessor(QThread):
     error = pyqtSignal(str)
     analysis_progress = pyqtSignal(str)  # New signal for analysis updates
 
-    def __init__(self, video_paths, brand_text, font_size, font_color, opacity, font_path=None, smart_positioning=True, analysis_frames=50):
+    def __init__(self, video_paths, brand_text, font_size, font_color, opacity, font_path=None, smart_positioning=True, analysis_frames=50, filename_suffix="PROSWIPE"):
         super().__init__()
         self.video_paths = video_paths
         self.brand_text = brand_text
@@ -30,6 +30,7 @@ class VideoProcessor(QThread):
         self.font_path = font_path
         self.smart_positioning = smart_positioning
         self.analysis_frames = analysis_frames
+        self.filename_suffix = filename_suffix
         self.safe_zone_margins = {
             'left_right_percent': 11.1,
             'top_percent': 13.0,
@@ -39,12 +40,16 @@ class VideoProcessor(QThread):
         self.cached_position = None
 
     def get_output_path(self, input_path):
-        """Generate output path with PROSWIPE suffix in same directory."""
+        """Generate output path with custom suffix in same directory."""
         path = Path(input_path)
         parent_dir = path.parent
         stem = path.stem
         suffix = path.suffix
-        return str(parent_dir / f"{stem} PROSWIPE{suffix}")
+        
+        if self.filename_suffix.strip():
+            return str(parent_dir / f"{stem} {self.filename_suffix}{suffix}")
+        else:
+            return str(parent_dir / f"{stem}{suffix}")
 
     def detect_text_in_region(self, frame_region):
         """Comprehensive text detection using multiple advanced methods."""
@@ -499,6 +504,8 @@ class BrandWatermarkGUI(QMainWindow):
         self.video_paths = []
         self.font_path = ""
         self.font_color = (255, 255, 0)
+        self.filename_suffix = "PROSWIPE"
+        
         
         # Initialize settings
         self.settings = QSettings("VideoWatermark", "BrandTool")
@@ -581,6 +588,16 @@ class BrandWatermarkGUI(QMainWindow):
         self.brand_text = QLineEdit("PROSWIPE")
         brand_layout.addWidget(self.brand_text, row, 1, 1, 2)
         row += 1
+
+        # Filename suffix
+        brand_layout.addWidget(QLabel("Filename Suffix:"), row, 0)
+        self.filename_suffix_input = QLineEdit("PROSWIPE")
+        self.filename_suffix_input.setPlaceholderText("Leave blank for no suffix")
+        self.filename_suffix_input.setToolTip("Text to add at the end of exported filenames (leave blank for no suffix)")
+        brand_layout.addWidget(self.filename_suffix_input, row, 1, 1, 2)
+        row += 1
+
+        # Font size
 
         # Font size
         brand_layout.addWidget(QLabel("Font Size:"), row, 0)
@@ -697,9 +714,11 @@ class BrandWatermarkGUI(QMainWindow):
         self.statusBar().showMessage("Ready - Enhanced with full video analysis")
 
     def load_settings(self):
-        """Load saved settings from QSettings"""
         brand_text = self.settings.value("brand_text", "PROSWIPE")
         self.brand_text.setText(brand_text)
+
+        filename_suffix = self.settings.value("filename_suffix", "PROSWIPE")
+        self.filename_suffix_input.setText(filename_suffix)
 
         font_size = self.settings.value("font_size", 60, type=int)
         self.font_size.setValue(font_size)
@@ -731,6 +750,7 @@ class BrandWatermarkGUI(QMainWindow):
     def save_settings(self):
         """Save current settings to QSettings"""
         self.settings.setValue("brand_text", self.brand_text.text())
+        self.settings.setValue("filename_suffix", self.filename_suffix_input.text())
         self.settings.setValue("font_size", self.font_size.value())
         self.settings.setValue("smart_positioning", self.smart_positioning_cb.isChecked())
         # Save analysis mode
@@ -835,7 +855,8 @@ class BrandWatermarkGUI(QMainWindow):
             opacity=self.opacity_slider.value() / 100.0,
             font_path=self.font_path if self.font_path else None,
             smart_positioning=self.smart_positioning_cb.isChecked(),
-            analysis_frames=4 if self.analysis_mode.currentIndex() == 0 else 50
+            analysis_frames=4 if self.analysis_mode.currentIndex() == 0 else 50,
+            filename_suffix=self.filename_suffix_input.text()
         )
 
         self.processor.progress.connect(self.update_progress)
@@ -861,10 +882,11 @@ class BrandWatermarkGUI(QMainWindow):
 
     def processing_finished(self, output_paths):
         analysis_method = "full video analysis" if self.smart_positioning_cb.isChecked() else "simple positioning"
+        suffix_text = f" with '{self.filename_suffix_input.text()}' suffix" if self.filename_suffix_input.text().strip() else ""
         QMessageBox.information(
             self, "🎉 Success!", 
             f"Successfully processed {len(output_paths)} videos using {analysis_method}!\n\n"
-            f"📁 All files saved with 'PROSWIPE' suffix\n"
+            f"📁 All files saved{suffix_text}\n"
             f"🎯 Each video was analyzed completely for optimal watermark placement!"
         )
         self.reset_processing_ui()
