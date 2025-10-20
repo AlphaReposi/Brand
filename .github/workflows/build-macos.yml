@@ -1,11 +1,10 @@
 name: Build macOS DMG
-
 on:
   push:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch:  # Allows manual trigger
+  workflow_dispatch:
 
 jobs:
   build-macos:
@@ -30,10 +29,20 @@ jobs:
       run: |
         pyinstaller --name="VideoWatermarkTool" \
                     --windowed \
-                    --onefile \
                     --icon=lg.ico \
                     --add-data="lg.ico:." \
+                    --osx-bundle-identifier="com.simonpitt.videowatermarktool" \
+                    --target-arch=universal2 \
                     main.py
+    
+    - name: Create ad-hoc code signature
+      run: |
+        codesign --force --deep --sign - "dist/VideoWatermarkTool.app"
+    
+    - name: Verify code signature
+      run: |
+        codesign --verify --verbose "dist/VideoWatermarkTool.app"
+        codesign -dv "dist/VideoWatermarkTool.app"
     
     - name: Create DMG
       run: |
@@ -48,10 +57,21 @@ jobs:
           --icon-size 100 \
           --app-drop-link 600 185 \
           "VideoWatermarkTool.dmg" \
-          "dist/VideoWatermarkTool.app"
+          "dist/VideoWatermarkTool.app" || true
+        
+        # If create-dmg fails, create a simple DMG
+        if [ ! -f "VideoWatermarkTool.dmg" ]; then
+          hdiutil create -volname "Video Watermark Tool" -srcfolder "dist/VideoWatermarkTool.app" -ov -format UDZO "VideoWatermarkTool.dmg"
+        fi
     
     - name: Upload DMG as artifact
       uses: actions/upload-artifact@v4
       with:
         name: macos-dmg
         path: VideoWatermarkTool.dmg
+    
+    - name: Upload app bundle as artifact (for testing)
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-app
+        path: dist/VideoWatermarkTool.app
