@@ -32,7 +32,6 @@ jobs:
                     --icon=lg.ico \
                     --add-data="lg.ico:." \
                     --osx-bundle-identifier="com.simonpitt.videowatermarktool" \
-                    --target-arch=universal2 \
                     main.py
     
     - name: Create ad-hoc code signature
